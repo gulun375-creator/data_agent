@@ -1,7 +1,7 @@
 # Data Agent - 数据分析 AI Agent 需求文档
 
 > **项目名称**：Data Agent  
-> **文档版本**：v0.9（草案）  
+> **文档版本**：v0.10（草案）  
 > **创建日期**：2026-04-02  
 > **最后更新**：2026-04-02  
 > **状态**：需求收集中
@@ -289,21 +289,21 @@ Agent 需要以下工具来完成 Schema 驱动的 SQL 分析：
 
 ### 4.1 技术栈候选
 
-| 组件 | 候选方案 | 推荐 | 状态 |
-|------|---------|------|------|
-| **开发语言** | Python | Python | 待确认 |
-| **LLM 框架** | LangChain / LlamaIndex / 原生 SDK | 待定 | 待确认 |
-| **LLM 模型** | OpenAI GPT / 通义千问 / GLM / 本地模型 | 待定 | 待确认 |
-| **数据处理** | Pandas / Polars | 待定 | 待确认 |
-| **可视化** | Matplotlib / Plotly / ECharts | 待定 | 待确认 |
-| **Web 框架** | Streamlit / Gradio / FastAPI + React | 待定 | 待确认 |
-| **数据库 ORM** | SQLAlchemy | SQLAlchemy | 待确认 |
-| **向量数据库** | FAISS / Chroma（用于语义搜索场景） | 待定 | 待确认 |
+| 组件 | 选型 | 状态 |
+|------|------|------|
+| **开发语言** | Python | 已确认 |
+| **LLM 框架** | LangChain | 已确认 |
+| **LLM 模型** | OpenAI GPT | 已确认 |
+| **数据处理** | Pandas / Polars | 待确认 |
+| **可视化** | Matplotlib / Plotly / ECharts | 待确认 |
+| **Web 框架** | Streamlit / Gradio / FastAPI + React | 待确认 |
+| **数据库 ORM** | SQLAlchemy | 已确认 |
+| **向量数据库** | FAISS（用于长期记忆 / 语义搜索） | 已确认 |
 
 > **待讨论**：  
-> - LLM 选哪个？是否需要支持国内模型？  
-> - 前端用快速原型方案（Streamlit）还是生产级方案（React）？  
-> - 是否需要向量数据库做语义搜索？
+> - 数据处理用 Pandas 还是 Polars？  
+> - 可视化库选哪个？  
+> - 前端用快速原型方案（Streamlit/Gradio）还是生产级方案（FastAPI + React）？
 
 ### 4.2 系统架构（草案）
 
@@ -494,7 +494,7 @@ Agent：正在分析本周数据... 已生成运营周报：
 以下问题需要在后续讨论中逐一确认：
 
 - [x] **Q1**：MVP 阶段优先支持哪些数据源？ → **已确认：Schema 注册 + SQL 生成执行为核心，CSV/Excel 作为后续扩展**
-- [ ] **Q2**：LLM 选型？OpenAI / 通义千问 / 其他？是否需要多模型支持？
+- [x] **Q2**：LLM 选型？ → **已确认：OpenAI GPT，框架用 LangChain，向量数据库用 FAISS**
 - [ ] **Q3**：前端方案？Streamlit（快速）vs React（生产级）？
 - [ ] **Q4**：部署形态？本地工具 vs 在线服务？
 - [ ] **Q5**：是否需要用户登录和权限管理？
@@ -519,3 +519,4 @@ Agent：正在分析本周数据... 已生成运营周报：
 | 2026-04-02 | v0.7 | 确认可视化与输出全部功能项（P0~P3） | - |
 | 2026-04-02 | v0.8 | 确认对话与上下文全部功能项（P0~P2） | - |
 | 2026-04-02 | v0.9 | 确认上下文窗口跟随模型限制、新增长期记忆需求（P1） | - |
+| 2026-04-02 | v0.10 | 确认技术栈：Python + LangChain + OpenAI GPT + SQLAlchemy + FAISS | - |
