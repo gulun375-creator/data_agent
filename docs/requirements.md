@@ -1,7 +1,7 @@
 # Data Agent - 数据分析 AI Agent 需求文档
 
 > **项目名称**：Data Agent  
-> **文档版本**：v0.1（草案）  
+> **文档版本**：v0.2（草案）  
 > **创建日期**：2026-04-02  
 > **最后更新**：2026-04-02  
 > **状态**：需求收集中
@@ -38,6 +38,8 @@
 
 | 功能项 | 优先级 | 描述 | 状态 |
 |-------|--------|------|------|
+| **数据表 Schema 注册** | **P0** | **用户配置数据表结构（Schema），Agent 基于 Schema 理解数据并生成 SQL** | **已确认** |
+| **SQL 生成与执行** | **P0** | **Agent 根据 Schema 上下文生成 SQL，通过数据库查询工具执行并返回结果** | **已确认** |
 | CSV/Excel 文件上传 | P0 | 用户上传本地文件，Agent 自动解析 | 待确认 |
 | SQLite 数据库 | P0 | 连接本地 SQLite 文件进行查询 | 待确认 |
 | MySQL/PostgreSQL | P1 | 通过连接字符串接入远程数据库 | 待确认 |
@@ -45,6 +47,170 @@
 | 数据湖/数仓 | P3 | 接入 BigQuery、ClickHouse 等 | 待确认 |
 
 > **待讨论**：MVP 阶段优先支持哪些数据源？
+
+#### 2.1.1 Schema 驱动的 SQL 分析（核心流程）
+
+这是 Agent 数据分析的核心路径：**用户提供数据表 Schema → Agent 理解表结构 → 生成 SQL → 调用数据库查询工具执行 → 返回分析结果。**
+
+**Schema 管理**
+
+| 功能项 | 描述 | 状态 |
+|-------|------|------|
+| Schema 注册 | 用户通过配置文件或 UI 录入表的 Schema 信息（表名、字段名、字段类型、字段含义） | 已确认 |
+| Schema 自动发现 | 连接数据库后自动读取表结构（INFORMATION_SCHEMA / SHOW TABLES 等） | 待确认 |
+| Schema 补充描述 | 用户可为字段添加业务含义说明（如：`status=1` 表示"已支付"） | 待确认 |
+| 表关系定义 | 定义表之间的关联关系（外键、JOIN 条件） | 待确认 |
+| Schema 版本管理 | Schema 变更时的版本追踪和更新 | 待确认 |
+
+**Schema 数据结构示例**
+
+```json
+{
+  "data_source": {
+    "name": "电商业务库",
+    "type": "mysql",
+    "connection": "mysql://user:pass@host:3306/ecommerce"
+  },
+  "tables": [
+    {
+      "table_name": "orders",
+      "description": "订单主表，记录所有用户订单信息",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "description": "订单ID，主键",
+          "is_primary_key": true
+        },
+        {
+          "name": "user_id",
+          "type": "BIGINT",
+          "description": "用户ID，关联 users 表",
+          "foreign_key": "users.id"
+        },
+        {
+          "name": "total_amount",
+          "type": "DECIMAL(10,2)",
+          "description": "订单总金额（单位：元）"
+        },
+        {
+          "name": "status",
+          "type": "TINYINT",
+          "description": "订单状态",
+          "enum_values": {
+            "0": "待支付",
+            "1": "已支付",
+            "2": "已发货",
+            "3": "已完成",
+            "4": "已取消"
+          }
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "description": "订单创建时间"
+        }
+      ]
+    },
+    {
+      "table_name": "users",
+      "description": "用户表",
+      "columns": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "description": "用户ID，主键",
+          "is_primary_key": true
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(100)",
+          "description": "用户姓名"
+        },
+        {
+          "name": "region",
+          "type": "VARCHAR(50)",
+          "description": "所在地区"
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "description": "注册时间"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "from": "orders.user_id",
+      "to": "users.id",
+      "type": "many_to_one",
+      "description": "每个订单属于一个用户"
+    }
+  ]
+}
+```
+
+**SQL 生成与执行流程**
+
+```
+用户提问
+  │
+  ▼
+┌─────────────────────────────┐
+│ 1. 意图理解                  │  Agent 解析用户自然语言问题
+└──────────────┬──────────────┘
+               │
+               ▼
+┌─────────────────────────────┐
+│ 2. Schema 上下文注入         │  将相关表的 Schema 信息注入 LLM 上下文
+│    - 匹配相关表              │  （根据问题智能选择涉及的表，
+│    - 注入字段定义和业务含义    │   避免一次性注入全部 Schema）
+│    - 注入表关系              │
+└──────────────┬──────────────┘
+               │
+               ▼
+┌─────────────────────────────┐
+│ 3. SQL 生成                  │  LLM 基于 Schema 上下文生成 SQL
+│    - 生成标准 SQL 查询        │
+│    - 自动处理 JOIN / 聚合     │
+│    - 适配目标数据库方言       │
+└──────────────┬──────────────┘
+               │
+               ▼
+┌─────────────────────────────┐
+│ 4. SQL 安全校验（可选）       │  防止危险操作（DROP/DELETE/UPDATE 等）
+└──────────────┬──────────────┘
+               │
+               ▼
+┌─────────────────────────────┐
+│ 5. 调用数据库查询工具执行      │  通过统一的 DB Query Tool 执行 SQL
+│    Tool: execute_sql()       │  支持不同数据库后端
+└──────────────┬──────────────┘
+               │
+               ▼
+┌─────────────────────────────┐
+│ 6. 结果处理与呈现             │  Agent 解读查询结果
+│    - 格式化为表格/图表        │  生成自然语言总结
+│    - 自然语言解读             │
+└─────────────────────────────┘
+```
+
+**Agent Tool 定义（草案）**
+
+Agent 需要以下工具来完成 Schema 驱动的 SQL 分析：
+
+| Tool 名称 | 描述 | 输入 | 输出 |
+|-----------|------|------|------|
+| `get_schema` | 获取指定表或全部表的 Schema 信息 | 表名（可选） | Schema JSON |
+| `execute_sql` | 执行 SQL 查询并返回结果 | SQL 语句 | 查询结果（行列数据） |
+| `list_tables` | 列出所有可用的数据表 | 无 | 表名列表 + 简要描述 |
+| `get_sample_data` | 获取指定表的示例数据 | 表名, 行数 | 示例数据行 |
+
+> **待讨论**：  
+> - Schema 是通过配置文件静态定义，还是支持 UI 动态管理？  
+> - 是否需要支持自动从数据库反向生成 Schema？  
+> - SQL 执行前是否强制需要用户确认？还是仅对写操作拦截？
 
 ### 2.2 问答与分析
 
@@ -209,26 +375,65 @@ Agent：[折线图：产品A月度销售趋势]
       产品A在10月达到峰值（¥920,000），11月略有回落，12月恢复增长...
 ```
 
-### 场景 2：连接数据库进行查询
+### 场景 2：基于 Schema 的数据库问答（核心场景）
 
 > **作为** 产品经理  
-> **我想要** 连接公司数据库，用自然语言查询用户数据  
+> **我想要** 配置好数据库 Schema 后，用自然语言查询业务数据  
 > **以便于** 自助获取产品指标，不依赖数据团队
+
+**前置步骤**：管理员已配置好数据库连接和表 Schema（包含 `users`、`orders`、`products` 等表的字段定义和业务含义）。
 
 **示例对话**：
 ```
-用户：连接我的数据库 [输入连接信息]
-Agent：已成功连接数据库，发现 23 张表。核心表包括：users, orders, products...
+用户：我们有哪些数据表可以查询？
+Agent：当前已配置以下数据表：
+      [调用 list_tables 工具]
+      1. users - 用户表（字段：id, name, region, created_at）
+      2. orders - 订单表（字段：id, user_id, total_amount, status, created_at）
+      3. products - 商品表（字段：id, name, category, price）
+      共 3 张表，是否需要查看某张表的详细结构？
 
 用户：过去30天的日活跃用户趋势怎么样？
-Agent：[折线图：DAU 趋势]
+Agent：让我查询一下。
+      [根据 Schema 生成 SQL]
+      SELECT DATE(created_at) AS date, COUNT(DISTINCT user_id) AS dau
+      FROM orders
+      WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+      GROUP BY DATE(created_at)
+      ORDER BY date;
+      [调用 execute_sql 工具执行]
+      
+      [折线图：DAU 趋势]
       过去30天平均 DAU 为 12,450，整体呈上升趋势（+8.2%）。
       3月15日出现峰值（18,200），可能与营销活动相关。
 
 用户：这些活跃用户的地区分布呢？
-Agent：[饼图：用户地区分布]
+Agent：[根据 Schema 识别到需要 JOIN users 表获取 region 字段]
+      SELECT u.region, COUNT(DISTINCT o.user_id) AS active_users
+      FROM orders o JOIN users u ON o.user_id = u.id
+      WHERE o.created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+      GROUP BY u.region
+      ORDER BY active_users DESC;
+      [调用 execute_sql 工具执行]
+      
+      [饼图：用户地区分布]
       华东地区占比最高（35.2%），其次是华南（22.1%）...
+
+用户：状态为"已取消"的订单占比是多少？
+Agent：[根据 Schema 中 status 字段的 enum_values 映射，知道 status=4 表示"已取消"]
+      SELECT 
+        COUNT(CASE WHEN status = 4 THEN 1 END) AS cancelled,
+        COUNT(*) AS total,
+        ROUND(COUNT(CASE WHEN status = 4 THEN 1 END) / COUNT(*) * 100, 2) AS cancel_rate
+      FROM orders
+      WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY);
+      [调用 execute_sql 工具执行]
+      
+      过去30天订单取消率为 5.8%（共 490 笔取消订单 / 8,450 笔总订单）。
+      相比上月（4.2%）有所上升，建议关注取消原因。
 ```
+
+> **关键点**：Agent 能够利用 Schema 中的字段含义（如 `status` 的枚举值映射）准确理解用户的自然语言描述，并生成正确的 SQL。
 
 ### 场景 3：自动生成数据报告
 
@@ -260,12 +465,14 @@ Agent：正在分析本周数据... 已生成运营周报：
 
 建议 MVP（最小可行产品）包含以下功能：
 
-- [ ] CSV/Excel 文件上传与解析
+- [ ] **数据表 Schema 配置与管理**（配置文件方式）
+- [ ] **自然语言转 SQL 生成**（基于 Schema 上下文）
+- [ ] **SQL 执行工具**（对接数据库执行查询，返回结果）
 - [ ] 自然语言问答（文字回答 + 基础图表）
-- [ ] 自动生成并执行 Python（Pandas）分析代码
 - [ ] 多轮对话上下文支持
 - [ ] 基础 Web UI（对话界面 + 结果展示）
 - [ ] 支持至少一个 LLM 后端
+- [ ] CSV/Excel 文件上传与解析
 
 > **待讨论**：以上 MVP 范围是否合理？需要增减什么？
 
@@ -306,3 +513,4 @@ Agent：正在分析本周数据... 已生成运营周报：
 | 日期 | 版本 | 变更内容 | 作者 |
 |------|------|---------|------|
 | 2026-04-02 | v0.1 | 初始草案，建立文档框架 | - |
+| 2026-04-02 | v0.2 | 新增 Schema 驱动的 SQL 分析核心流程、Tool 定义、场景细化 | - |
