@@ -294,16 +294,12 @@ Agent 需要以下工具来完成 Schema 驱动的 SQL 分析：
 | **开发语言** | Python | 已确认 |
 | **LLM 框架** | LangChain | 已确认 |
 | **LLM 模型** | OpenAI GPT | 已确认 |
-| **数据处理** | Pandas / Polars | 待确认 |
-| **可视化** | Matplotlib / Plotly / ECharts | 待确认 |
-| **Web 框架** | Streamlit / Gradio / FastAPI + React | 待确认 |
+| **数据处理** | Polars | 已确认 |
+| **可视化** | ECharts | 已确认 |
+| **Web 框架** |FastAPI + React | 已确认 |
 | **数据库 ORM** | SQLAlchemy | 已确认 |
 | **向量数据库** | FAISS（用于长期记忆 / 语义搜索） | 已确认 |
 
-> **待讨论**：  
-> - 数据处理用 Pandas 还是 Polars？  
-> - 可视化库选哪个？  
-> - 前端用快速原型方案（Streamlit/Gradio）还是生产级方案（FastAPI + React）？
 
 ### 4.2 系统架构（草案）
 
