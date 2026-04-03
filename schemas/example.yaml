@@ -1,0 +1,100 @@
+data_source:
+  name: "电商业务库"
+  type: sqlite
+  connection: "sqlite:///data/ecommerce.db"
+
+tables:
+  - table_name: orders
+    description: "订单主表，记录所有用户订单信息"
+    columns:
+      - name: id
+        type: INTEGER
+        description: "订单ID，主键"
+        is_primary_key: true
+
+      - name: user_id
+        type: INTEGER
+        description: "用户ID，关联 users 表"
+        foreign_key: users.id
+
+      - name: product_id
+        type: INTEGER
+        description: "商品ID，关联 products 表"
+        foreign_key: products.id
+
+      - name: total_amount
+        type: REAL
+        description: "订单总金额（单位：元）"
+
+      - name: quantity
+        type: INTEGER
+        description: "购买数量"
+
+      - name: status
+        type: INTEGER
+        description: "订单状态"
+        enum_values:
+          "0": "待支付"
+          "1": "已支付"
+          "2": "已发货"
+          "3": "已完成"
+          "4": "已取消"
+
+      - name: created_at
+        type: TEXT
+        description: "订单创建时间"
+
+  - table_name: users
+    description: "用户表，记录注册用户信息"
+    columns:
+      - name: id
+        type: INTEGER
+        description: "用户ID，主键"
+        is_primary_key: true
+
+      - name: name
+        type: TEXT
+        description: "用户姓名"
+
+      - name: email
+        type: TEXT
+        description: "用户邮箱"
+
+      - name: region
+        type: TEXT
+        description: "所在地区"
+
+      - name: created_at
+        type: TEXT
+        description: "注册时间"
+
+  - table_name: products
+    description: "商品表，记录在售商品信息"
+    columns:
+      - name: id
+        type: INTEGER
+        description: "商品ID，主键"
+        is_primary_key: true
+
+      - name: name
+        type: TEXT
+        description: "商品名称"
+
+      - name: category
+        type: TEXT
+        description: "商品分类"
+
+      - name: price
+        type: REAL
+        description: "商品单价（单位：元）"
+
+relationships:
+  - from: orders.user_id
+    to: users.id
+    type: many_to_one
+    description: "每个订单属于一个用户"
+
+  - from: orders.product_id
+    to: products.id
+    type: many_to_one
+    description: "每个订单关联一个商品"

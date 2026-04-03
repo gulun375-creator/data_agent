@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "data-agent"
+version = "0.1.0"
+description = "AI-powered data analysis agent with natural language SQL generation"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "langchain>=0.3",
+    "langchain-openai>=0.3",
+    "langchain-community>=0.3",
+    "sqlalchemy>=2.0",
+    "pymysql",
+    "psycopg2-binary",
+    "faiss-cpu",
+    "pandas",
+    "pydantic>=2.0",
+    "pydantic-settings",
+    "pyyaml",
+    "rich",
+    "prompt-toolkit",
+    "python-dotenv",
+]
+
+[project.scripts]
+data-agent = "data_agent.main:main"
+
+[tool.setuptools.packages.find]
+include = ["data_agent*"]

@@ -1,0 +1,16 @@
+llm:
+  provider: openai
+  model: gpt-4o
+  temperature: 0
+  max_tokens: 4096
+
+database:
+  max_query_rows: 500
+  query_timeout: 30
+
+schema_dir: "./schemas"
+
+memory:
+  chat_history_max_messages: 50
+  long_term_memory_dir: "./data/memory"
+  long_term_memory_top_k: 5
